@@ -14,6 +14,7 @@ import {
 } from './parseContext';
 import syncLabels from './syncLabels';
 
+type Fallback = Array<string> | { labels: Array<string>; fallbackActivatesBelowCount: number };
 export interface Config {
   labels: {
     [key: string]: {
@@ -28,12 +29,14 @@ export interface Config {
       conditions: IssueCondition[];
     };
   };
+  issue_fallback: Fallback;
   pr: {
     [key: string]: {
       requires: number;
       conditions: PRCondition[];
     };
   };
+  pr_fallback: Fallback;
 }
 
 const context = github.context;
@@ -101,6 +104,7 @@ const context = github.context;
       await applyPRLabels({
         client,
         config: config.pr,
+        config_fallback : config.pr_fallback,
         labelIdToName,
         prContext: curContext.context,
         repo,
@@ -109,6 +113,7 @@ const context = github.context;
       await applyIssueLabels({
         client,
         config: config.issue,
+        config_fallback : config.issue_fallback,
         issueContext: curContext.context,
         labelIdToName,
         repo,

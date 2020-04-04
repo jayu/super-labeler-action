@@ -5496,6 +5496,7 @@ const context = github.context;
             yield applyLabels_1.applyPRLabels({
                 client,
                 config: config.pr,
+                config_fallback: config.pr_fallback,
                 labelIdToName,
                 prContext: curContext.context,
                 repo,
@@ -5505,6 +5506,7 @@ const context = github.context;
             yield applyLabels_1.applyIssueLabels({
                 client,
                 config: config.issue,
+                config_fallback: config.issue_fallback,
                 issueContext: curContext.context,
                 labelIdToName,
                 repo,
@@ -26456,14 +26458,21 @@ const addRemoveLabel = ({ client, curLabels, label, labelIdToName, matches, num,
     if (matches >= requires && !hasLabel) {
         core.debug(`${matches} >= ${requires} matches, adding label "${label}"...`);
         yield api_1.addLabel({ client, repo, num, label: labelName });
+        return 1;
     }
     if (matches < requires && hasLabel) {
         core.debug(`${matches} < ${requires} matches, removing label "${label}"...`);
         yield api_1.removeLabel({ client, repo, num, label: labelName });
+        return -1;
     }
+    return 0;
 });
-exports.applyIssueLabels = ({ client, config, issueContext, labelIdToName, repo, }) => __awaiter(void 0, void 0, void 0, function* () {
+exports.applyIssueLabels = ({ client, config, config_fallback, issueContext, labelIdToName, repo, }) => __awaiter(void 0, void 0, void 0, function* () {
     const { labels: curLabels, issueProps, num } = issueContext;
+    const fallbackLabels = Array.isArray(config_fallback)
+        ? config_fallback
+        : config_fallback.labels;
+    let nonFallbackLabelsCount = Object.keys(curLabels).filter(([name, labelInfo]) => !fallbackLabels.includes(name)).length;
     for (const [label, opts] of Object.entries(config)) {
         core.debug(`Label: ${label}`);
         const matches = forConditions(opts.conditions, (condition) => {
@@ -26471,7 +26480,7 @@ exports.applyIssueLabels = ({ client, config, issueContext, labelIdToName, repo,
             const handler = conditions_1.getIssueConditionHandler(condition);
             return ((_a = handler) === null || _a === void 0 ? void 0 : _a(condition, issueProps)) || false;
         });
-        yield addRemoveLabel({
+        const labelsManageResult = yield addRemoveLabel({
             client,
             curLabels,
             label,
@@ -26481,9 +26490,27 @@ exports.applyIssueLabels = ({ client, config, issueContext, labelIdToName, repo,
             repo,
             requires: opts.requires,
         });
+        nonFallbackLabelsCount += labelsManageResult;
     }
+    const fallbackActivatesBelowCount = Array.isArray(config_fallback)
+        ? 1
+        : config_fallback.fallbackActivatesBelowCount;
+    const addFallbackLabels = nonFallbackLabelsCount < fallbackActivatesBelowCount ? 1 : 0;
+    core.debug(`Adding fallback labels`);
+    fallbackLabels.forEach((label) => __awaiter(void 0, void 0, void 0, function* () {
+        yield addRemoveLabel({
+            client,
+            curLabels,
+            label,
+            labelIdToName,
+            matches: addFallbackLabels,
+            num,
+            repo,
+            requires: 1,
+        });
+    }));
 });
-exports.applyPRLabels = ({ client, config, labelIdToName, prContext, repo, }) => __awaiter(void 0, void 0, void 0, function* () {
+exports.applyPRLabels = ({ client, config, config_fallback, labelIdToName, prContext, repo, }) => __awaiter(void 0, void 0, void 0, function* () {
     const { labels: curLabels, prProps, num } = prContext;
     for (const [label, opts] of Object.entries(config)) {
         core.debug(`Label: ${label}`);
