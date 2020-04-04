@@ -24,6 +24,7 @@ export interface PRConditionConfig {
   conditions: PRCondition[];
 };
 
+export type Fallback = Array<string> | { labels: Array<string>; fallbackActivationValue: number };
 export interface Config {
   labels: {
     [key: string]: {
@@ -35,10 +36,12 @@ export interface Config {
   issue: {
     [key: string]: IssueConditionConfig;
   };
+  issue_fallback: Fallback;
   pr: {
     [key: string]: PRConditionConfig;
   };
   skip_labeling: string;
+  pr_fallback: Fallback;
 }
 
 const context = github.context;
@@ -107,6 +110,7 @@ const context = github.context;
         client,
         config: config.pr,
         skipLabeling: config.skip_labeling,
+        configFallback: config.pr_fallback,
         labelIdToName,
         prContext: curContext.context,
         repo,
@@ -116,6 +120,7 @@ const context = github.context;
         client,
         config: config.issue,
         skipLabeling: config.skip_labeling,
+        configFallback : config.issue_fallback,
         issueContext: curContext.context,
         labelIdToName,
         repo,

@@ -5504,6 +5504,7 @@ const context = github.context;
                 client,
                 config: config.pr,
                 skipLabeling: config.skip_labeling,
+                configFallback: config.pr_fallback,
                 labelIdToName,
                 prContext: curContext.context,
                 repo,
@@ -5514,6 +5515,7 @@ const context = github.context;
                 client,
                 config: config.issue,
                 skipLabeling: config.skip_labeling,
+                configFallback: config.issue_fallback,
                 issueContext: curContext.context,
                 labelIdToName,
                 repo,
@@ -26509,54 +26511,83 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const core = __importStar(__webpack_require__(470));
 const api_1 = __webpack_require__(924);
 const evaluator_1 = __importStar(__webpack_require__(551));
-const skipLabelingLabelAssigned = (curLabels, labelIdToName, skipLabeling) => Object.values(curLabels).map(({ name }) => name).some((existingLabel) => existingLabel === labelIdToName[skipLabeling]);
+const skipLabelingLabelAssigned = (curLabels, labelIdToName, skipLabeling) => Object.values(curLabels)
+    .map(({ name }) => name)
+    .some((existingLabel) => existingLabel === labelIdToName[skipLabeling]);
+const getFallbackLabels = (configFallback) => Array.isArray(configFallback) ? configFallback : configFallback.labels;
+const getNonFallbackLabels = (currentLabels, fallbackLabelNames) => Object.keys(currentLabels).filter(([name]) => !fallbackLabelNames.includes(name))
+    .length;
+const getFallbackActivationValue = (configFallback) => Array.isArray(configFallback) ? 1 : configFallback.fallbackActivationValue;
 const addRemoveLabel = ({ client, curLabels, labelID, labelName, IDNumber, repo, shouldHaveLabel, }) => __awaiter(void 0, void 0, void 0, function* () {
     const hasLabel = curLabels.filter((l) => l.name === labelName).length > 0;
     if (shouldHaveLabel && !hasLabel) {
         core.debug(`Adding label "${labelID}"...`);
         yield api_1.addLabel({ client, repo, IDNumber, label: labelName });
+        return 1;
     }
     if (!shouldHaveLabel && hasLabel) {
         core.debug(`Removing label "${labelID}"...`);
         yield api_1.removeLabel({ client, repo, IDNumber, label: labelName });
+        return -1;
     }
+    return 0;
 });
-exports.applyIssueLabels = ({ client, config, skipLabeling, issueContext, labelIdToName, repo, }) => __awaiter(void 0, void 0, void 0, function* () {
+exports.applyIssueLabels = ({ client, config, skipLabeling, configFallback, issueContext, labelIdToName, repo, }) => __awaiter(void 0, void 0, void 0, function* () {
     const { labels: curLabels, issueProps, IDNumber } = issueContext;
     if (skipLabelingLabelAssigned(curLabels, labelIdToName, skipLabeling)) {
         return;
     }
+    const commonProps = {
+        client,
+        curLabels,
+        IDNumber,
+        repo,
+    };
+    const fallbackLabels = getFallbackLabels(configFallback);
+    const fallbackLabelNames = fallbackLabels.map((labelID) => labelIdToName[labelID]);
+    core.debug(`Fallback labels : ${fallbackLabels.join(';')}`);
+    let nonFallbackLabelsCount = getNonFallbackLabels(curLabels, fallbackLabelNames);
+    core.debug(`Init Non Fallback labels count: ${nonFallbackLabelsCount}`);
     for (const [labelID, conditionsConfig] of Object.entries(config)) {
         core.debug(`Label: ${labelID}`);
         const shouldHaveLabel = evaluator_1.default(evaluator_1.ConditionSetType.issue, conditionsConfig, issueProps);
-        yield addRemoveLabel({
-            client,
-            curLabels,
-            labelID,
-            labelName: labelIdToName[labelID],
-            IDNumber,
-            repo,
-            shouldHaveLabel,
-        });
+        const labelsManageResult = yield addRemoveLabel(Object.assign(Object.assign({}, commonProps), { labelID, labelName: labelIdToName[labelID], shouldHaveLabel }));
+        nonFallbackLabelsCount += labelsManageResult;
     }
+    const fallbackActivationValue = getFallbackActivationValue(configFallback);
+    const shouldAddFallbackLabels = nonFallbackLabelsCount <= fallbackActivationValue;
+    core.debug(`Fallback activation value: ${fallbackActivationValue}, Non fallback labels: ${nonFallbackLabelsCount}, should add fallback ${shouldAddFallbackLabels}`);
+    fallbackLabels.forEach((labelID) => __awaiter(void 0, void 0, void 0, function* () {
+        core.debug(`Adding fallback label: '${labelID}'`);
+        yield addRemoveLabel(Object.assign(Object.assign({}, commonProps), { labelID, labelName: labelIdToName[labelID], shouldHaveLabel: shouldAddFallbackLabels }));
+    }));
 });
-exports.applyPRLabels = ({ client, config, labelIdToName, skipLabeling, prContext, repo, }) => __awaiter(void 0, void 0, void 0, function* () {
+exports.applyPRLabels = ({ client, config, configFallback, labelIdToName, skipLabeling, prContext, repo, }) => __awaiter(void 0, void 0, void 0, function* () {
     const { labels: curLabels, prProps, IDNumber } = prContext;
     if (skipLabelingLabelAssigned(curLabels, labelIdToName, skipLabeling)) {
         return;
     }
+    const commonProps = {
+        client,
+        curLabels,
+        IDNumber,
+        repo,
+    };
+    const fallbackLabels = getFallbackLabels(configFallback);
+    const fallbackLabelNames = fallbackLabels.map((labelID) => labelIdToName[labelID]);
+    let nonFallbackLabelsCount = getNonFallbackLabels(curLabels, fallbackLabelNames);
     for (const [labelID, conditionsConfig] of Object.entries(config)) {
         core.debug(`Label: ${labelID}`);
         const shouldHaveLabel = evaluator_1.default(evaluator_1.ConditionSetType.issue, conditionsConfig, prProps);
-        yield addRemoveLabel({
-            client,
-            curLabels,
-            labelID,
-            labelName: labelIdToName[labelID],
-            IDNumber,
-            repo,
-            shouldHaveLabel,
-        });
+        const labelsManageResult = yield addRemoveLabel(Object.assign(Object.assign({}, commonProps), { labelID, labelName: labelIdToName[labelID], shouldHaveLabel }));
+        nonFallbackLabelsCount += labelsManageResult;
+        const fallbackActivationValue = getFallbackActivationValue(configFallback);
+        const shouldAddFallbackLabels = nonFallbackLabelsCount <= fallbackActivationValue;
+        core.debug(`Fallback activation value: ${fallbackActivationValue}, Non fallback labels: ${nonFallbackLabelsCount}, should add fallback ${shouldAddFallbackLabels}`);
+        fallbackLabels.forEach((labelID) => __awaiter(void 0, void 0, void 0, function* () {
+            core.debug(`Adding fallback label: '${labelID}'`);
+            yield addRemoveLabel(Object.assign(Object.assign({}, commonProps), { labelID, labelName: labelIdToName[labelID], shouldHaveLabel: shouldAddFallbackLabels }));
+        }));
     }
 });
 
