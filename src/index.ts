@@ -14,17 +14,19 @@ import {
 } from './parseContext';
 import syncLabels from './syncLabels';
 
-export interface IssueConditionConfig  {
+export interface IssueConditionConfig {
   requires: number;
   conditions: IssueCondition[];
-};
+}
 
 export interface PRConditionConfig {
   requires: number;
   conditions: PRCondition[];
-};
+}
 
-export type Fallback = Array<string> | { labels: Array<string>; fallbackActivationValue: number };
+export type Fallback =
+  | Array<string>
+  | { labels: Array<string>; fallbackActivationValue: number };
 export interface Config {
   labels: {
     [key: string]: {
@@ -63,6 +65,7 @@ const context = github.context;
       throw new Error(`config not found at "${configPath}"`);
     }
     const config: Config = JSON.parse(fs.readFileSync(configPath).toString());
+
     core.debug(`Config: ${JSON.stringify(config)}`);
 
     let curContext:
@@ -126,7 +129,7 @@ const context = github.context;
         client,
         config: config.issue,
         skipLabeling: config.skip_labeling,
-        configFallback : config.issue_fallback,
+        configFallback: config.issue_fallback,
         issueContext: curContext.context,
         labelIdToName,
         repo,

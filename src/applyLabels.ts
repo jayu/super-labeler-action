@@ -73,15 +73,15 @@ export const applyIssueLabels = async ({
 }: {
   client: GitHub;
   config: Config['issue'];
-  skipLabeling: string;
-  configFallback: Fallback;
+  skipLabeling?: string;
+  configFallback?: Fallback;
   issueContext: IssueContext;
   labelIdToName: LabelIDToName;
   repo: Repo;
 }) => {
   const { labels: curLabels, issueProps, IDNumber } = issueContext;
 
-  if (skipLabelingLabelAssigned(curLabels, labelIdToName, skipLabeling)) {
+  if (skipLabeling !== undefined && skipLabelingLabelAssigned(curLabels, labelIdToName, skipLabeling)) {
     core.debug(`Labeling skipped due to existing skipLabeling label`);
     return;
   }
@@ -93,7 +93,7 @@ export const applyIssueLabels = async ({
     repo,
   };
 
-  const fallbackLabels = getFallbackLabels(configFallback)
+  const fallbackLabels = configFallback ? getFallbackLabels(configFallback) : []
   const fallbackLabelNames = fallbackLabels.map((labelID) => labelIdToName[labelID])
   core.debug(`Fallback labels : ${fallbackLabels.join(';')}`)
   let nonFallbackLabelsCount = getNonFallbackLabels(curLabels, fallbackLabelNames);
@@ -118,7 +118,7 @@ export const applyIssueLabels = async ({
     nonFallbackLabelsCount += labelsManageResult;
   }
 
-  const fallbackActivationValue = getFallbackActivationValue(configFallback);
+  const fallbackActivationValue = configFallback ? getFallbackActivationValue(configFallback) : -1;
   const shouldAddFallbackLabels =
     nonFallbackLabelsCount <= fallbackActivationValue;
   
@@ -146,15 +146,15 @@ export const applyPRLabels = async ({
 }: {
   client: GitHub;
   config: Config['pr'];
-  skipLabeling: string;
+  skipLabeling?: string;
   labelIdToName: LabelIDToName;
-  configFallback: Fallback;
+  configFallback?: Fallback;
   prContext: PRContext;
   repo: Repo;
 }) => {
   const { labels: curLabels, prProps, IDNumber } = prContext;
 
-  if (skipLabelingLabelAssigned(curLabels, labelIdToName, skipLabeling)) {
+  if (skipLabeling !== undefined &&  skipLabelingLabelAssigned(curLabels, labelIdToName, skipLabeling)) {
     core.debug(`Labeling skipped due to existing skipLabeling label`);
     return;
   }
@@ -166,7 +166,7 @@ export const applyPRLabels = async ({
     repo,
   };
 
-  const fallbackLabels = getFallbackLabels(configFallback);
+  const fallbackLabels = configFallback ? getFallbackLabels(configFallback) : [];
   const fallbackLabelNames = fallbackLabels.map((labelID) => labelIdToName[labelID])
   core.debug(`Fallback labels : ${fallbackLabels.join(';')}`)
 
@@ -191,7 +191,7 @@ export const applyPRLabels = async ({
 
     nonFallbackLabelsCount += labelsManageResult;
 
-    const fallbackActivationValue = getFallbackActivationValue(configFallback);
+    const fallbackActivationValue = configFallback ? getFallbackActivationValue(configFallback) : -1;
     const shouldAddFallbackLabels =
       nonFallbackLabelsCount <= fallbackActivationValue;
 
