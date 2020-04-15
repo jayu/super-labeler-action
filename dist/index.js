@@ -5494,12 +5494,14 @@ const context = github.context;
             return;
         }
         yield syncLabels_1.default({ client, repo, config: config.labels });
+        core.debug(`Create label id to name mapping`);
         // Mapping of label ids to Github names
         const labelIdToName = Object.entries(config.labels).reduce((acc, cur) => {
             acc[cur[0]] = cur[1].name;
             return acc;
         }, {});
         if (curContext.type === 'pr') {
+            core.debug(`Start apply labels to PR`);
             yield applyLabels_1.applyPRLabels({
                 client,
                 config: config.pr,
@@ -5511,6 +5513,7 @@ const context = github.context;
             });
         }
         else if (curContext.type === 'issue') {
+            core.debug(`Start apply labels to issue`);
             yield applyLabels_1.applyIssueLabels({
                 client,
                 config: config.issue,
@@ -8927,6 +8930,7 @@ const syncLabels = ({ client, config, repo, }) => __awaiter(void 0, void 0, void
             }
         }
     }
+    core.debug('Sync labels loop finished.');
 });
 exports.default = syncLabels;
 
@@ -26535,6 +26539,7 @@ const addRemoveLabel = ({ client, curLabels, labelID, labelName, IDNumber, repo,
 exports.applyIssueLabels = ({ client, config, skipLabeling, configFallback, issueContext, labelIdToName, repo, }) => __awaiter(void 0, void 0, void 0, function* () {
     const { labels: curLabels, issueProps, IDNumber } = issueContext;
     if (skipLabelingLabelAssigned(curLabels, labelIdToName, skipLabeling)) {
+        core.debug(`Labeling skipped due to existing skipLabeling label`);
         return;
     }
     const commonProps = {
@@ -26549,7 +26554,7 @@ exports.applyIssueLabels = ({ client, config, skipLabeling, configFallback, issu
     let nonFallbackLabelsCount = getNonFallbackLabels(curLabels, fallbackLabelNames);
     core.debug(`Init Non Fallback labels count: ${nonFallbackLabelsCount}`);
     for (const [labelID, conditionsConfig] of Object.entries(config)) {
-        core.debug(`Label: ${labelID}`);
+        core.debug(`Processing label with ID ${labelID}`);
         const shouldHaveLabel = evaluator_1.default(evaluator_1.ConditionSetType.issue, conditionsConfig, issueProps);
         const labelsManageResult = yield addRemoveLabel(Object.assign(Object.assign({}, commonProps), { labelID, labelName: labelIdToName[labelID], shouldHaveLabel }));
         nonFallbackLabelsCount += labelsManageResult;
@@ -26565,6 +26570,7 @@ exports.applyIssueLabels = ({ client, config, skipLabeling, configFallback, issu
 exports.applyPRLabels = ({ client, config, configFallback, labelIdToName, skipLabeling, prContext, repo, }) => __awaiter(void 0, void 0, void 0, function* () {
     const { labels: curLabels, prProps, IDNumber } = prContext;
     if (skipLabelingLabelAssigned(curLabels, labelIdToName, skipLabeling)) {
+        core.debug(`Labeling skipped due to existing skipLabeling label`);
         return;
     }
     const commonProps = {
@@ -26575,9 +26581,11 @@ exports.applyPRLabels = ({ client, config, configFallback, labelIdToName, skipLa
     };
     const fallbackLabels = getFallbackLabels(configFallback);
     const fallbackLabelNames = fallbackLabels.map((labelID) => labelIdToName[labelID]);
+    core.debug(`Fallback labels : ${fallbackLabels.join(';')}`);
     let nonFallbackLabelsCount = getNonFallbackLabels(curLabels, fallbackLabelNames);
+    core.debug(`Init Non Fallback labels count: ${nonFallbackLabelsCount}`);
     for (const [labelID, conditionsConfig] of Object.entries(config)) {
-        core.debug(`Label: ${labelID}`);
+        core.debug(`Processing label with ID ${labelID}`);
         const shouldHaveLabel = evaluator_1.default(evaluator_1.ConditionSetType.issue, conditionsConfig, prProps);
         const labelsManageResult = yield addRemoveLabel(Object.assign(Object.assign({}, commonProps), { labelID, labelName: labelIdToName[labelID], shouldHaveLabel }));
         nonFallbackLabelsCount += labelsManageResult;

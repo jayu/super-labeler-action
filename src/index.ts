@@ -96,6 +96,8 @@ const context = github.context;
 
     await syncLabels({ client, repo, config: config.labels });
 
+    core.debug(`Create label id to name mapping`);
+
     // Mapping of label ids to Github names
     const labelIdToName = Object.entries(config.labels).reduce(
       (acc: { [key: string]: string }, cur) => {
@@ -106,6 +108,8 @@ const context = github.context;
     );
 
     if (curContext.type === 'pr') {
+      core.debug(`Start apply labels to PR`);
+
       await applyPRLabels({
         client,
         config: config.pr,
@@ -116,6 +120,8 @@ const context = github.context;
         repo,
       });
     } else if (curContext.type === 'issue') {
+      core.debug(`Start apply labels to issue`);
+
       await applyIssueLabels({
         client,
         config: config.issue,

@@ -52,6 +52,7 @@ const syncLabels = async ({
       }
     }
   }
+  core.debug('Sync labels loop finished.');
 };
 
 export default syncLabels;

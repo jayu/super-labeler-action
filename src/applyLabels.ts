@@ -82,6 +82,7 @@ export const applyIssueLabels = async ({
   const { labels: curLabels, issueProps, IDNumber } = issueContext;
 
   if (skipLabelingLabelAssigned(curLabels, labelIdToName, skipLabeling)) {
+    core.debug(`Labeling skipped due to existing skipLabeling label`);
     return;
   }
 
@@ -99,7 +100,7 @@ export const applyIssueLabels = async ({
   core.debug(`Init Non Fallback labels count: ${nonFallbackLabelsCount}`)
 
   for (const [labelID, conditionsConfig] of Object.entries(config)) {
-    core.debug(`Label: ${labelID}`);
+    core.debug(`Processing label with ID ${labelID}`);
 
     const shouldHaveLabel = evaluator(
       ConditionSetType.issue,
@@ -154,6 +155,7 @@ export const applyPRLabels = async ({
   const { labels: curLabels, prProps, IDNumber } = prContext;
 
   if (skipLabelingLabelAssigned(curLabels, labelIdToName, skipLabeling)) {
+    core.debug(`Labeling skipped due to existing skipLabeling label`);
     return;
   }
 
@@ -166,11 +168,13 @@ export const applyPRLabels = async ({
 
   const fallbackLabels = getFallbackLabels(configFallback);
   const fallbackLabelNames = fallbackLabels.map((labelID) => labelIdToName[labelID])
+  core.debug(`Fallback labels : ${fallbackLabels.join(';')}`)
 
   let nonFallbackLabelsCount = getNonFallbackLabels(curLabels, fallbackLabelNames);
+ core.debug(`Init Non Fallback labels count: ${nonFallbackLabelsCount}`)
 
   for (const [labelID, conditionsConfig] of Object.entries(config)) {
-    core.debug(`Label: ${labelID}`);
+    core.debug(`Processing label with ID ${labelID}`);
 
     const shouldHaveLabel = evaluator(
       ConditionSetType.issue,
